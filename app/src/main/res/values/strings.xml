@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Laba2</string>
+
+    <string name="welcome_title">Добро пожаловать</string>
+    <string name="logo_text">Моё приложение</string>
+    <string name="login_hint">Логин</string>
+    <string name="password_hint">Пароль</string>
+
+    <string name="login_button">Вход</string>
+    <string name="register_button">Регистрация</string>
+    <string name="exit_button">Выход</string>
+    <string name="login_required">Введите логин и пароль</string>
+
+    <string name="menu_title">Меню</string>
+    <string name="start_button">Возврат на экран входа</string>
+    <string name="profile_button">Профиль</string>
+    <string name="settings_button">Настройки</string>
+    <string name="report_button">Сообщить о проблеме</string>
+    <string name="no_email_app">Не найдено приложение для отправки письма</string>
+
+    <string name="start_title">Старт</string>
+
+    <string name="settings_title">Настройки</string>
+    <string name="day_night_setting">Тема оформления</string>
+    <string name="day_theme">День</string>
+    <string name="night_theme">Ночь</string>
+    <string name="theme_day">День</string>
+    <string name="theme_night">Ночь</string>
+
+    <string name="registration_title">Регистрация</string>
+    <string name="save_button">Сохранить</string>
+
+    <string name="profile_title">Профиль</string>
+    <string name="name_hint">Имя</string>
+    <string name="email_hint">Электронная почта</string>
+    <string name="phone_hint">Телефон</string>
+    <string name="back_button">Назад</string>
+</resources>
