@@ -1,126 +1,159 @@
 package com.example.laba2
 
+import android.app.Activity
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageView
+import android.widget.RadioGroup
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.edit
 
-class RegistrationActivity : AppCompatActivity() {
+class RegistrationActivity : Activity() {
 
-    private lateinit var nameEditText: EditText
-    private lateinit var emailEditText: EditText
-    private lateinit var phoneEditText: EditText
-    private lateinit var loginEditText: EditText
-    private lateinit var passwordEditText: EditText
+    private lateinit var avatarImage: ImageView
+    private lateinit var preferences: android.content.SharedPreferences
 
-    private val tag = "RegistrationActivity"
+    companion object {
+        private const val PICK_AVATAR_REQUEST = 1001
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Log.i(tag, "onCreate")
         setContentView(R.layout.activity_registration)
 
-        nameEditText = findViewById(R.id.nameEditText)
-        emailEditText = findViewById(R.id.emailEditText)
-        phoneEditText = findViewById(R.id.phoneEditText)
-        loginEditText = findViewById(R.id.loginRegistrationEditText)
-        passwordEditText = findViewById(R.id.passwordRegistrationEditText)
+        preferences = getSharedPreferences("user_profile", MODE_PRIVATE)
 
-        findViewById<Button>(R.id.saveRegistrationButton).setOnClickListener {
-            val name = nameEditText.text.toString().trim()
-            val email = emailEditText.text.toString().trim()
-            val phone = phoneEditText.text.toString().trim()
-            val login = loginEditText.text.toString().trim()
-            val password = passwordEditText.text.toString()
+        val loginInput = findViewById<EditText>(R.id.loginInput)
+        val passwordInput = findViewById<EditText>(R.id.passwordInput)
+        val fullNameInput = findViewById<EditText>(R.id.fullNameInput)
+        val birthDateInput = findViewById<EditText>(R.id.birthDateInput)
+        val genderGroup = findViewById<RadioGroup>(R.id.genderGroup)
 
-            if (name.isEmpty() || email.isEmpty() || phone.isEmpty() ||
-                login.isEmpty() || password.isEmpty()
-            ) {
+        avatarImage = findViewById(R.id.avatarImage)
+
+        val chooseAvatarButton =
+            findViewById<Button>(R.id.chooseAvatarButton)
+        val registerButton =
+            findViewById<Button>(R.id.registerButton)
+
+        loginInput.setText(preferences.getString("login", ""))
+        fullNameInput.setText(preferences.getString("fullName", ""))
+        birthDateInput.setText(preferences.getString("birthDate", ""))
+
+        when (preferences.getString("gender", "")) {
+            "Мужской" -> genderGroup.check(R.id.genderMale)
+            "Женский" -> genderGroup.check(R.id.genderFemale)
+        }
+
+        preferences.getString("avatarUri", null)?.let { savedUri ->
+            avatarImage.setImageURI(Uri.parse(savedUri))
+        }
+
+        chooseAvatarButton.setOnClickListener {
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "image/*"
+            }
+            startActivityForResult(intent, PICK_AVATAR_REQUEST)
+        }
+
+        registerButton.setOnClickListener {
+            val login = loginInput.text.toString().trim()
+            val password = passwordInput.text.toString()
+            val fullName = fullNameInput.text.toString().trim()
+            val birthDate = birthDateInput.text.toString().trim()
+
+            if (login.isEmpty() || password.isEmpty() || fullName.isEmpty()) {
                 Toast.makeText(
                     this,
-                    R.string.login_required,
+                    R.string.fill_registration_fields,
                     Toast.LENGTH_SHORT
                 ).show()
                 return@setOnClickListener
             }
 
-            val prefs = getSharedPreferences("user_data", MODE_PRIVATE)
-
-            prefs.edit {
-                putString("name", name)
-                putString("email", email)
-                putString("phone", phone)
-                putString("login", login)
-                putString("password", password)
+            val gender = when (genderGroup.checkedRadioButtonId) {
+                R.id.genderMale -> "Мужской"
+                R.id.genderFemale -> "Женский"
+                else -> "Не указан"
             }
+
+            preferences.edit()
+                .putString("login", login)
+                .putString("fullName", fullName)
+                .putString("birthDate", birthDate)
+                .putString("gender", gender)
+                .apply()
 
             Toast.makeText(
                 this,
-                R.string.save_button,
+                R.string.register_success,
                 Toast.LENGTH_SHORT
             ).show()
 
+            val menuIntent = Intent(
+                this@RegistrationActivity,
+                MenuActivity::class.java
+            )
+            menuIntent.putExtra("login", login)
+            startActivity(menuIntent)
             finish()
         }
+    }
 
-        findViewById<Button>(R.id.backButton).setOnClickListener {
-            finish()
+    @Deprecated("Используется для получения результата выбора изображения")
+    override fun onActivityResult(
+        requestCode: Int,
+        resultCode: Int,
+        data: Intent?
+    ) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode == PICK_AVATAR_REQUEST && resultCode == RESULT_OK) {
+            val uri: Uri = data?.data ?: return
+
+            try {
+                contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (e: SecurityException) {
+                Log.e("RegistrationActivity", "Не удалось сохранить доступ к аватару", e)
+            }
+
+            avatarImage.setImageURI(uri)
+
+            preferences.edit()
+                .putString("avatarUri", uri.toString())
+                .apply()
         }
     }
 
     override fun onStart() {
         super.onStart()
-        Log.i(tag, "onStart")
+        Log.d("RegistrationActivity", "onStart")
     }
 
     override fun onResume() {
         super.onResume()
-        Log.i(tag, "onResume")
+        Log.d("RegistrationActivity", "onResume")
     }
 
     override fun onPause() {
-        Log.i(tag, "onPause")
         super.onPause()
+        Log.d("RegistrationActivity", "onPause")
     }
 
     override fun onStop() {
-        Log.i(tag, "onStop")
         super.onStop()
-    }
-
-    override fun onRestart() {
-        super.onRestart()
-        Log.i(tag, "onRestart")
+        Log.d("RegistrationActivity", "onStop")
     }
 
     override fun onDestroy() {
-        Log.i(tag, "onDestroy")
         super.onDestroy()
-    }
-
-    override fun onSaveInstanceState(outState: Bundle) {
-        outState.putString("saved_name", nameEditText.text.toString())
-        outState.putString("saved_email", emailEditText.text.toString())
-        outState.putString("saved_phone", phoneEditText.text.toString())
-        outState.putString("saved_login", loginEditText.text.toString())
-        outState.putString("saved_password", passwordEditText.text.toString())
-
-        Log.i(tag, "onSaveInstanceState")
-        super.onSaveInstanceState(outState)
-    }
-
-    override fun onRestoreInstanceState(savedInstanceState: Bundle) {
-        super.onRestoreInstanceState(savedInstanceState)
-
-        nameEditText.setText(savedInstanceState.getString("saved_name", ""))
-        emailEditText.setText(savedInstanceState.getString("saved_email", ""))
-        phoneEditText.setText(savedInstanceState.getString("saved_phone", ""))
-        loginEditText.setText(savedInstanceState.getString("saved_login", ""))
-        passwordEditText.setText(savedInstanceState.getString("saved_password", ""))
-
-        Log.i(tag, "onRestoreInstanceState")
+        Log.d("RegistrationActivity", "onDestroy")
     }
 }

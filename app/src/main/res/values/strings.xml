@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Laba2</string>
+    <string name="app_name">Лабораторная работа 3</string>
 
     <string name="welcome_title">Добро пожаловать</string>
     <string name="logo_text">Моё приложение</string>
@@ -12,7 +12,7 @@
     <string name="exit_button">Выход</string>
     <string name="login_required">Введите логин и пароль</string>
 
-    <string name="menu_title">Меню</string>
+    <string name="menu_title">Главное меню</string>
     <string name="start_button">Возврат на экран входа</string>
     <string name="profile_button">Профиль</string>
     <string name="settings_button">Настройки</string>
@@ -29,11 +29,38 @@
     <string name="theme_night">Ночь</string>
 
     <string name="registration_title">Регистрация</string>
-    <string name="save_button">Сохранить</string>
+    <string name="registration_screen_title">Регистрация пользователя</string>
+    <string name="registration_login_hint">Логин</string>
+    <string name="registration_password_hint">Пароль</string>
+    <string name="registration_full_name_hint">ФИО</string>
+    <string name="registration_birth_date_hint">Дата рождения</string>
+    <string name="registration_gender_label">Пол:</string>
+    <string name="gender_male_short">М</string>
+    <string name="gender_female_short">Ж</string>
+    <string name="avatar_description">Аватар пользователя</string>
+
+    <string name="save_button">Зарегистрироваться</string>
+    <string name="register_user_button">Зарегистрироваться</string>
+    <string name="register_success">Регистрация завершена</string>
+    <string name="fill_registration_fields">Заполните логин, пароль и ФИО</string>
+    <string name="full_name_hint">ФИО</string>
+    <string name="birth_date_hint">Дата рождения</string>
+    <string name="gender_title">Пол</string>
+    <string name="gender_male">Мужской</string>
+    <string name="gender_female">Женский</string>
+    <string name="choose_avatar_button">Выбрать аватар</string>
 
     <string name="profile_title">Профиль</string>
     <string name="name_hint">Имя</string>
     <string name="email_hint">Электронная почта</string>
     <string name="phone_hint">Телефон</string>
     <string name="back_button">Назад</string>
+    <string name="profile_login">Логин</string>
+    <string name="profile_full_name">ФИО</string>
+    <string name="profile_birth_date">Дата рождения</string>
+    <string name="profile_gender">Пол</string>
+    <string name="value_not_specified">Не указано</string>
+
+    <string name="users_title">Список пользователей</string>
+    <string name="add_user">Добавить пользователя</string>
 </resources>

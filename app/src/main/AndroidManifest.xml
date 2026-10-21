@@ -10,27 +10,30 @@
 
         <activity
             android:name=".RegistrationActivity"
-            android:screenOrientation="portrait"
             android:exported="false" />
 
         <activity
-            android:name=".MenuActivity"
-            android:screenOrientation="portrait"
-            android:exported="false" />
-
-        <activity
-            android:name=".SettingsActivity"
-            android:screenOrientation="portrait"
+            android:name=".UsersActivity"
             android:exported="false" />
 
         <activity
             android:name=".ProfileActivity"
-            android:screenOrientation="portrait"
+            android:exported="false" />
+
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".StartActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".MenuActivity"
             android:exported="false" />
 
         <activity
             android:name=".MainActivity"
-            android:screenOrientation="portrait"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -39,4 +42,5 @@
         </activity>
 
     </application>
+
 </manifest>
