@@ -81,12 +81,25 @@ class RegistrationActivity : Activity() {
                 else -> "Не указан"
             }
 
-            preferences.edit()
-                .putString("login", login)
-                .putString("fullName", fullName)
-                .putString("birthDate", birthDate)
-                .putString("gender", gender)
-                .apply()
+            val userStorage = UserStorage(this)
+
+            val user = User(
+                login = login,
+                fullName = fullName,
+                birthDate = birthDate,
+                gender = gender,
+                avatarUri = preferences.getString("avatarUri", null)
+            )
+
+            if (!userStorage.addUser(user)) {
+                Toast.makeText(
+                    this,
+                    "Такой логин уже зарегистрирован",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@setOnClickListener
+            }
+
 
             Toast.makeText(
                 this,

@@ -1,5 +1,4 @@
-﻿
-package com.example.laba2
+﻿package com.example.laba2
 
 import android.content.Intent
 import android.net.Uri
@@ -26,16 +25,28 @@ class MenuActivity : AppCompatActivity() {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
 
+        // Новая кнопка «Все пользователи»
+        findViewById<Button>(R.id.allUsersButton).setOnClickListener {
+            startActivity(Intent(this, UsersActivity::class.java))
+        }
+
         findViewById<Button>(R.id.reportButton).setOnClickListener {
             val intent = Intent(Intent.ACTION_SENDTO).apply {
                 data = Uri.parse("mailto:")
-                putExtra(Intent.EXTRA_SUBJECT, "Сообщение о проблеме")
+                putExtra(
+                    Intent.EXTRA_SUBJECT,
+                    "Сообщение о проблеме"
+                )
             }
 
             try {
                 startActivity(intent)
             } catch (e: Exception) {
-                Toast.makeText(this, R.string.no_email_app, Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this,
+                    R.string.no_email_app,
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
 

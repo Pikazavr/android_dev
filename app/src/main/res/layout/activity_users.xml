@@ -20,6 +20,13 @@
         android:layout_weight="1" />
 
     <Button
+        android:id="@+id/backToMenuButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="8dp"
+        android:text="Вернуться в главное меню" />
+
+    <Button
         android:id="@+id/addUserButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
