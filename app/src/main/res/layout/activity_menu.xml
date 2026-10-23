@@ -9,10 +9,10 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginBottom="20dp"
         android:text="@string/menu_title"
         android:textSize="26sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="20dp" />
+        android:textStyle="bold" />
 
     <Button
         android:id="@+id/allUsersButton"
@@ -20,11 +20,6 @@
         android:layout_height="wrap_content"
         android:text="Все пользователи" />
 
-    <Button
-        android:id="@+id/startButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/start_button" />
 
     <Button
         android:id="@+id/profileButton"
@@ -43,6 +38,12 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/report_button" />
+
+    <Button
+        android:id="@+id/returnToLoginButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/return_to_login_button" />
 
     <Button
         android:id="@+id/menuExitButton"

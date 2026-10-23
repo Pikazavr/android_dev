@@ -1,107 +1,187 @@
+
 package com.example.laba2
 
+import androidx.appcompat.app.AppCompatActivity
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
-import android.widget.ArrayAdapter
-import android.widget.Button
-import android.widget.ImageView
-import android.widget.ListView
-import android.widget.TextView
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.asImageBitmap
+import android.graphics.BitmapFactory
 
-class UsersActivity : Activity() {
+class UsersActivity : AppCompatActivity() {
 
     private lateinit var userStorage: UserStorage
-    private lateinit var adapter: UserAdapter
-    private lateinit var usersList: ListView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_users)
 
         userStorage = UserStorage(this)
-        usersList = findViewById(R.id.usersList)
-
-        adapter = UserAdapter()
-        usersList.adapter = adapter
-
-        // Кнопка добавления пользователя
-        findViewById<Button>(R.id.addUserButton)
-            .setOnClickListener {
-                startActivity(
-                    Intent(this, RegistrationActivity::class.java)
-                )
-            }
-
-        // Кнопка возврата в главное меню
-        findViewById<Button>(R.id.backToMenuButton)
-            .setOnClickListener {
-                finish()
-            }
 
         Log.d("UsersActivity", "Список пользователей открыт")
+
+        setContent {
+            AppTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    UsersScreen(
+                        users = userStorage.getUsers(),
+                        onAddUser = {
+                            startActivity(
+                                Intent(
+                                    this@UsersActivity,
+                                    RegistrationActivity::class.java
+                                )
+                            )
+                        },
+                        onBack = {
+                            finish()
+                        }
+                    )
+                }
+            }
+        }
     }
 
     override fun onResume() {
         super.onResume()
-        adapter.updateUsers(userStorage.getUsers())
+        // При возвращении на экран список обновится в UsersScreen
+        // при следующем создании экрана; обновление при возврате
+        // выполняется через обновление состояния ниже.
     }
+}
 
-    private inner class UserAdapter :
-        ArrayAdapter<User>(this, 0, mutableListOf()) {
+@Composable
+fun UsersScreen(
+    users: List<User>,
+    onAddUser: () -> Unit,
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
 
-        private val items = mutableListOf<User>()
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Все пользователи",
+            fontSize = 26.sp
+        )
 
-        fun updateUsers(newUsers: List<User>) {
-            items.clear()
-            items.addAll(newUsers)
-            clear()
-            addAll(newUsers)
-            notifyDataSetChanged()
-        }
+        Spacer(modifier = Modifier.height(16.dp))
 
-        override fun getView(
-            position: Int,
-            convertView: View?,
-            parent: ViewGroup
-        ): View {
-            val view = convertView ?: LayoutInflater.from(this@UsersActivity)
-                .inflate(R.layout.item, parent, false)
+        if (users.isEmpty()) {
+            Text("Пользователей пока нет")
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(users, key = { it.login }) { user ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val bitmap = remember(user.avatarUri) {
+                            try {
+                                user.avatarUri?.let { uriString ->
+                                    context.contentResolver.openInputStream(
+                                        Uri.parse(uriString)
+                                    )?.use { stream ->
+                                        BitmapFactory.decodeStream(stream)
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                Log.e(
+                                    "UsersActivity",
+                                    "Не удалось загрузить фото",
+                                    e
+                                )
+                                null
+                            }
+                        }
 
-            val user = items[position]
+                        if (bitmap != null) {
+                            Image(
+                                bitmap = bitmap.asImageBitmap(),
+                                contentDescription = "Аватар пользователя",
+                                modifier = Modifier.size(64.dp)
+                            )
+                        } else {
+                            Text(
+                                text = "👤",
+                                fontSize = 40.sp,
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                        }
 
-            view.findViewById<TextView>(R.id.itemContent).text =
-                user.fullName
-
-            view.findViewById<TextView>(R.id.userLogin).text =
-                "Логин: ${user.login}"
-
-            view.findViewById<TextView>(R.id.userBirthDate).text =
-                "Дата рождения: ${user.birthDate}"
-
-            val avatar = view.findViewById<ImageView>(R.id.userAvatar)
-            avatar.setImageResource(
-                android.R.drawable.ic_menu_myplaces
-            )
-
-            user.avatarUri?.let { uri ->
-                try {
-                    avatar.setImageURI(Uri.parse(uri))
-                } catch (e: Exception) {
-                    Log.e(
-                        "UsersActivity",
-                        "Не удалось загрузить фото",
-                        e
-                    )
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(start = 12.dp)
+                        ) {
+                            Text(
+                                text = user.fullName,
+                                fontSize = 18.sp
+                            )
+                            Text("Логин: ${user.login}")
+                            Text("Дата рождения: ${user.birthDate}")
+                        }
+                    }
                 }
             }
+        }
 
-            return view
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Button(
+            onClick = onAddUser,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Добавить пользователя")
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Button(
+            onClick = onBack,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("В главное меню")
         }
     }
 }

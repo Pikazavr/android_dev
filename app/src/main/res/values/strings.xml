@@ -60,6 +60,7 @@
     <string name="profile_birth_date">Дата рождения</string>
     <string name="profile_gender">Пол</string>
     <string name="value_not_specified">Не указано</string>
+    <string name="return_to_login_button">Вернуться ко входу</string>
 
     <string name="users_title">Список пользователей</string>
     <string name="add_user">Добавить пользователя</string>

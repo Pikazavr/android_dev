@@ -4,46 +4,80 @@ package com.example.laba2
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import android.widget.Button
-import android.widget.EditText
 import android.widget.Toast
+import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 class MainActivity : AppCompatActivity() {
-
-    private lateinit var loginEditText: EditText
-    private lateinit var passwordEditText: EditText
 
     private val tag = "MainActivity"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.i(tag, "onCreate")
-        setContentView(R.layout.activity_main)
 
-        loginEditText = findViewById(R.id.loginEditText)
-        passwordEditText = findViewById(R.id.passwordEditText)
+        setContent {
+            AppTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    LoginScreen(
+                        onLogin = { login, password ->
+                            if (login.isBlank() || password.isBlank()) {
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    R.string.login_required,
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            } else {
+                                getSharedPreferences(
+                                    "user_data",
+                                    MODE_PRIVATE
+                                ).edit()
+                                    .putString("login", login)
+                                    .apply()
 
-        findViewById<Button>(R.id.loginButton).setOnClickListener {
-            val login = loginEditText.text.toString().trim()
-            val password = passwordEditText.text.toString()
-
-            if (login.isEmpty() || password.isEmpty()) {
-                Toast.makeText(this, R.string.login_required, Toast.LENGTH_SHORT).show()
-            } else {
-                val prefs = getSharedPreferences("user_data", MODE_PRIVATE)
-                prefs.edit().putString("login", login).apply()
-
-                startActivity(Intent(this, MenuActivity::class.java))
+                                startActivity(
+                                    Intent(
+                                        this@MainActivity,
+                                        MenuActivity::class.java
+                                    )
+                                )
+                            }
+                        },
+                        onRegister = {
+                            startActivity(
+                                Intent(
+                                    this@MainActivity,
+                                    RegistrationActivity::class.java
+                                )
+                            )
+                        },
+                        onExit = {
+                            finishAffinity()
+                        }
+                    )
+                }
             }
-        }
-
-        findViewById<Button>(R.id.registerButton).setOnClickListener {
-            startActivity(Intent(this, RegistrationActivity::class.java))
-        }
-
-        findViewById<Button>(R.id.exitButton).setOnClickListener {
-            finishAffinity()
         }
     }
 
@@ -63,8 +97,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onStop() {
-        Log.i(tag, "onStop")
         super.onStop()
+        Log.i(tag, "onStop")
     }
 
     override fun onRestart() {
@@ -73,21 +107,81 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        Log.i(tag, "onDestroy")
         super.onDestroy()
+        Log.i(tag, "onDestroy")
     }
+}
 
-    override fun onSaveInstanceState(outState: Bundle) {
-        outState.putString("saved_login", loginEditText.text.toString())
-        outState.putString("saved_password", passwordEditText.text.toString())
-        Log.i(tag, "onSaveInstanceState")
-        super.onSaveInstanceState(outState)
-    }
+@Composable
+fun LoginScreen(
+    onLogin: (String, String) -> Unit,
+    onRegister: () -> Unit,
+    onExit: () -> Unit
+) {
+    var login by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
 
-    override fun onRestoreInstanceState(savedInstanceState: Bundle) {
-        super.onRestoreInstanceState(savedInstanceState)
-        loginEditText.setText(savedInstanceState.getString("saved_login", ""))
-        passwordEditText.setText(savedInstanceState.getString("saved_password", ""))
-        Log.i(tag, "onRestoreInstanceState")
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Вход в приложение",
+            fontSize = 26.sp
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        OutlinedTextField(
+            value = login,
+            onValueChange = { login = it },
+            label = { Text("Логин") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Пароль") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Password
+            )
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Button(
+            onClick = { onLogin(login.trim(), password) },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Войти")
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Button(
+            onClick = onRegister,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Регистрация")
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Button(
+            onClick = onExit,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Выход")
+        }
     }
 }
