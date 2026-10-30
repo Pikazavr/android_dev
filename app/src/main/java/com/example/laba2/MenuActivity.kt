@@ -1,5 +1,4 @@
-﻿
-package com.example.laba2
+﻿package com.example.laba2
 
 import android.content.Intent
 import android.net.Uri
@@ -18,13 +17,17 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
 class MenuActivity : AppCompatActivity() {
+
+    private var isAdmin by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,21 +39,26 @@ class MenuActivity : AppCompatActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     MenuScreen(
-                        onUsers = {
+                        isAdmin = isAdmin,
+
+                        onAdministration = {
                             startActivity(
                                 Intent(this@MenuActivity, UsersActivity::class.java)
                             )
                         },
+
                         onProfile = {
                             startActivity(
                                 Intent(this@MenuActivity, ProfileActivity::class.java)
                             )
                         },
+
                         onSettings = {
                             startActivity(
                                 Intent(this@MenuActivity, SettingsActivity::class.java)
                             )
                         },
+
                         onReport = {
                             val intent = Intent(Intent.ACTION_SENDTO).apply {
                                 data = Uri.parse("mailto:")
@@ -70,6 +78,7 @@ class MenuActivity : AppCompatActivity() {
                                 ).show()
                             }
                         },
+
                         onReturn = {
                             val intent = Intent(
                                 this@MenuActivity,
@@ -82,6 +91,7 @@ class MenuActivity : AppCompatActivity() {
                             startActivity(intent)
                             finish()
                         },
+
                         onExit = {
                             finishAffinity()
                         }
@@ -90,11 +100,30 @@ class MenuActivity : AppCompatActivity() {
             }
         }
     }
+
+    override fun onResume() {
+        super.onResume()
+
+        val preferences = getSharedPreferences("user_data", MODE_PRIVATE)
+        val userId = preferences.getInt("current_user_id", -1)
+
+        if (userId == -1) {
+            isAdmin = false
+            return
+        }
+
+        lifecycleScope.launch {
+            val database = DatabaseProvider.getDatabase(this@MenuActivity)
+            val user = database.userDao().getUserById(userId)
+            isAdmin = user?.isAdmin == true
+        }
+    }
 }
 
 @Composable
 fun MenuScreen(
-    onUsers: () -> Unit,
+    isAdmin: Boolean,
+    onAdministration: () -> Unit,
     onProfile: () -> Unit,
     onSettings: () -> Unit,
     onReport: () -> Unit,
@@ -115,14 +144,16 @@ fun MenuScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Button(
-            onClick = onUsers,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Все пользователи")
-        }
+        if (isAdmin) {
+            Button(
+                onClick = onAdministration,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Администрирование")
+            }
 
-        Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+        }
 
         Button(
             onClick = onProfile,

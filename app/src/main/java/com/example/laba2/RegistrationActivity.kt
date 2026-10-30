@@ -1,7 +1,6 @@
 
 package com.example.laba2
 
-import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -29,12 +28,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
@@ -43,15 +38,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.lifecycleScope
 import android.graphics.BitmapFactory
+import kotlinx.coroutines.launch
 
 class RegistrationActivity : AppCompatActivity() {
 
-    private val preferences by lazy {
-        getSharedPreferences("user_profile", MODE_PRIVATE)
-    }
+    private lateinit var userRepository: UserRepository
 
-    private var selectedAvatarUri by mutableStateOf<String?>(null)
     private var onAvatarSelected: ((String) -> Unit)? = null
 
     private val avatarPicker =
@@ -70,11 +64,6 @@ class RegistrationActivity : AppCompatActivity() {
                     )
                 }
 
-                selectedAvatarUri = uri.toString()
-                preferences.edit()
-                    .putString("avatarUri", uri.toString())
-                    .apply()
-
                 onAvatarSelected?.invoke(uri.toString())
             }
         }
@@ -82,7 +71,9 @@ class RegistrationActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        selectedAvatarUri = preferences.getString("avatarUri", null)
+        userRepository = UserRepository(
+            DatabaseProvider.getDatabase(this)
+        )
 
         setContent {
             AppTheme {
@@ -91,66 +82,109 @@ class RegistrationActivity : AppCompatActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     RegistrationScreen(
-                        savedLogin = preferences.getString("login", "") ?: "",
-                        savedFullName = preferences.getString("fullName", "") ?: "",
-                        savedBirthDate = preferences.getString("birthDate", "") ?: "",
-                        savedGender = preferences.getString("gender", "") ?: "",
-                        savedAvatarUri = selectedAvatarUri,
                         onChooseAvatar = { callback ->
                             onAvatarSelected = callback
                             avatarPicker.launch(arrayOf("image/*"))
                         },
                         onRegister = { login, password, fullName, birthDate, gender, avatarUri ->
+
                             if (
                                 login.isBlank() ||
                                 password.isBlank() ||
                                 fullName.isBlank()
                             ) {
                                 Toast.makeText(
-                                    this,
-                                    R.string.fill_registration_fields,
+                                    this@RegistrationActivity,
+                                    "Заполните логин, пароль и ФИО",
                                     Toast.LENGTH_SHORT
                                 ).show()
                             } else {
-                                val userStorage = UserStorage(this)
+                                lifecycleScope.launch {
+                                    try {
+                                        val user = User(
+                                            login = login.trim(),
+                                            fullName = fullName.trim(),
+                                            birthDate = birthDate.trim(),
+                                            gender = gender,
+                                            avatarUri = avatarUri,
+                                            password = password
+                                        )
 
-                                val user = User(
-                                    login = login.trim(),
-                                    fullName = fullName.trim(),
-                                    birthDate = birthDate.trim(),
-                                    gender = gender,
-                                    avatarUri = avatarUri
-                                )
+                                        val registered =
+                                            userRepository.registerUser(user)
 
-                                if (!userStorage.addUser(user)) {
-                                    Toast.makeText(
-                                        this,
-                                        "Такой логин уже зарегистрирован",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                } else {
-                                    preferences.edit()
-                                        .putString("login", login.trim())
-                                        .putString("password", password)
-                                        .putString("fullName", fullName.trim())
-                                        .putString("birthDate", birthDate.trim())
-                                        .putString("gender", gender)
-                                        .putString("avatarUri", avatarUri)
-                                        .apply()
+                                        if (!registered) {
+                                            Toast.makeText(
+                                                this@RegistrationActivity,
+                                                "Такой логин уже зарегистрирован",
+                                                Toast.LENGTH_LONG
+                                            ).show()
+                                        } else {
+                                            // Получаем только что созданного пользователя
+                                            val registeredUser =
+                                                userRepository.loginUser(
+                                                    login.trim(),
+                                                    password
+                                                )
 
-                                    Toast.makeText(
-                                        this,
-                                        R.string.register_success,
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                            if (registeredUser != null) {
+                                                // Сохраняем текущую авторизованную сессию
+                                                getSharedPreferences(
+                                                    "user_data",
+                                                    MODE_PRIVATE
+                                                ).edit()
+                                                    .putInt(
+                                                        "current_user_id",
+                                                        registeredUser.id
+                                                    )
+                                                    .putString(
+                                                        "current_login",
+                                                        registeredUser.login
+                                                    )
+                                                    .putBoolean(
+                                                        "is_logged_in",
+                                                        true
+                                                    )
+                                                    .apply()
 
-                                    startActivity(
-                                        Intent(
+                                                Toast.makeText(
+                                                    this@RegistrationActivity,
+                                                    if (registeredUser.isAdmin) {
+                                                        "Регистрация успешна! Вы администратор."
+                                                    } else {
+                                                        "Регистрация успешна!"
+                                                    },
+                                                    Toast.LENGTH_LONG
+                                                ).show()
+
+                                                startActivity(
+                                                    Intent(
+                                                        this@RegistrationActivity,
+                                                        MenuActivity::class.java
+                                                    )
+                                                )
+                                                finish()
+                                            } else {
+                                                Toast.makeText(
+                                                    this@RegistrationActivity,
+                                                    "Пользователь создан, но не удалось выполнить вход",
+                                                    Toast.LENGTH_LONG
+                                                ).show()
+                                            }
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e(
+                                            "RegistrationActivity",
+                                            "Ошибка регистрации",
+                                            e
+                                        )
+
+                                        Toast.makeText(
                                             this@RegistrationActivity,
-                                            MenuActivity::class.java
-                                        ).putExtra("login", login.trim())
-                                    )
-                                    finish()
+                                            "Ошибка регистрации: ${e.localizedMessage}",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    }
                                 }
                             }
                         },
@@ -189,23 +223,18 @@ class RegistrationActivity : AppCompatActivity() {
 
 @Composable
 fun RegistrationScreen(
-    savedLogin: String,
-    savedFullName: String,
-    savedBirthDate: String,
-    savedGender: String,
-    savedAvatarUri: String?,
     onChooseAvatar: (((String) -> Unit) -> Unit),
     onRegister: (
         String, String, String, String, String, String?
     ) -> Unit,
     onBack: () -> Unit
 ) {
-    var login by rememberSaveable { mutableStateOf(savedLogin) }
+    var login by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
-    var fullName by rememberSaveable { mutableStateOf(savedFullName) }
-    var birthDate by rememberSaveable { mutableStateOf(savedBirthDate) }
-    var gender by rememberSaveable { mutableStateOf(savedGender) }
-    var avatarUri by remember { mutableStateOf(savedAvatarUri) }
+    var fullName by rememberSaveable { mutableStateOf("") }
+    var birthDate by rememberSaveable { mutableStateOf("") }
+    var gender by rememberSaveable { mutableStateOf("") }
+    var avatarUri by rememberSaveable { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
 
@@ -316,7 +345,9 @@ fun RegistrationScreen(
 
         Button(
             onClick = {
-                onChooseAvatar { uri -> avatarUri = uri }
+                onChooseAvatar { uri ->
+                    avatarUri = uri
+                }
             },
             modifier = Modifier.fillMaxWidth()
         ) {

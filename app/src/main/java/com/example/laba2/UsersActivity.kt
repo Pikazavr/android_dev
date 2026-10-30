@@ -1,14 +1,15 @@
 
 package com.example.laba2
 
-import androidx.appcompat.app.AppCompatActivity
-import android.app.Activity
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.compose.setContent
+import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,25 +25,23 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.graphics.asImageBitmap
-import android.graphics.BitmapFactory
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
 class UsersActivity : AppCompatActivity() {
 
-    private lateinit var userStorage: UserStorage
+    private val users = mutableStateOf<List<User>>(emptyList())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        userStorage = UserStorage(this)
 
         Log.d("UsersActivity", "Список пользователей открыт")
 
@@ -53,7 +52,19 @@ class UsersActivity : AppCompatActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     UsersScreen(
-                        users = userStorage.getUsers(),
+                        users = users.value,
+
+                        onUserClick = { user ->
+                            val intent = Intent(
+                                this@UsersActivity,
+                                ProfileActivity::class.java
+                            ).apply {
+                                putExtra("user_id", user.id)
+                            }
+
+                            startActivity(intent)
+                        },
+
                         onAddUser = {
                             startActivity(
                                 Intent(
@@ -62,6 +73,7 @@ class UsersActivity : AppCompatActivity() {
                                 )
                             )
                         },
+
                         onBack = {
                             finish()
                         }
@@ -73,20 +85,28 @@ class UsersActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // При возвращении на экран список обновится в UsersScreen
-        // при следующем создании экрана; обновление при возврате
-        // выполняется через обновление состояния ниже.
+        loadUsers()
+    }
+
+    private fun loadUsers() {
+        lifecycleScope.launch {
+            try {
+                val database = DatabaseProvider.getDatabase(this@UsersActivity)
+                users.value = database.userDao().getAllUsers()
+            } catch (e: Exception) {
+                Log.e("UsersActivity", "Ошибка загрузки пользователей", e)
+            }
+        }
     }
 }
 
 @Composable
 fun UsersScreen(
     users: List<User>,
+    onUserClick: (User) -> Unit,
     onAddUser: () -> Unit,
     onBack: () -> Unit
 ) {
-    val context = LocalContext.current
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -109,59 +129,11 @@ fun UsersScreen(
                     .fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(users, key = { it.login }) { user ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val bitmap = remember(user.avatarUri) {
-                            try {
-                                user.avatarUri?.let { uriString ->
-                                    context.contentResolver.openInputStream(
-                                        Uri.parse(uriString)
-                                    )?.use { stream ->
-                                        BitmapFactory.decodeStream(stream)
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                Log.e(
-                                    "UsersActivity",
-                                    "Не удалось загрузить фото",
-                                    e
-                                )
-                                null
-                            }
-                        }
-
-                        if (bitmap != null) {
-                            Image(
-                                bitmap = bitmap.asImageBitmap(),
-                                contentDescription = "Аватар пользователя",
-                                modifier = Modifier.size(64.dp)
-                            )
-                        } else {
-                            Text(
-                                text = "👤",
-                                fontSize = 40.sp,
-                                modifier = Modifier.padding(end = 8.dp)
-                            )
-                        }
-
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(start = 12.dp)
-                        ) {
-                            Text(
-                                text = user.fullName,
-                                fontSize = 18.sp
-                            )
-                            Text("Логин: ${user.login}")
-                            Text("Дата рождения: ${user.birthDate}")
-                        }
-                    }
+                items(users, key = { it.id }) { user ->
+                    UserItem(
+                        user = user,
+                        onClick = { onUserClick(user) }
+                    )
                 }
             }
         }
@@ -182,6 +154,73 @@ fun UsersScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("В главное меню")
+        }
+    }
+}
+
+@Composable
+fun UserItem(
+    user: User,
+    onClick: () -> Unit
+) {
+    val context = LocalContext.current
+
+    val bitmap = remember(user.avatarUri) {
+        try {
+            user.avatarUri?.let { uriString ->
+                context.contentResolver.openInputStream(
+                    Uri.parse(uriString)
+                )?.use { stream ->
+                    BitmapFactory.decodeStream(stream)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("UsersActivity", "Не удалось загрузить фото", e)
+            null
+        }
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (bitmap != null) {
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = "Аватар пользователя",
+                modifier = Modifier.size(64.dp),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Text(
+                text = "👤",
+                fontSize = 40.sp,
+                modifier = Modifier.padding(end = 8.dp)
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 12.dp)
+        ) {
+            Text(
+                text = user.fullName,
+                fontSize = 18.sp
+            )
+
+            Text("Логин: ${user.login}")
+            Text("Дата рождения: ${user.birthDate}")
+
+            if (user.isAdmin) {
+                Text(
+                    text = "Администратор",
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }

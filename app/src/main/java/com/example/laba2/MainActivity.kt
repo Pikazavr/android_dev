@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -28,40 +28,83 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
     private val tag = "MainActivity"
+    private lateinit var userRepository: UserRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.i(tag, "onCreate")
+
+        userRepository = UserRepository(
+            DatabaseProvider.getDatabase(this)
+        )
 
         setContent {
             AppTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     LoginScreen(
                         onLogin = { login, password ->
+
                             if (login.isBlank() || password.isBlank()) {
                                 Toast.makeText(
                                     this@MainActivity,
-                                    R.string.login_required,
+                                    "Введите логин и пароль",
                                     Toast.LENGTH_SHORT
                                 ).show()
                             } else {
-                                getSharedPreferences(
-                                    "user_data",
-                                    MODE_PRIVATE
-                                ).edit()
-                                    .putString("login", login)
-                                    .apply()
+                                lifecycleScope.launch {
+                                    try {
+                                        val user = userRepository.loginUser(
+                                            login.trim(),
+                                            password
+                                        )
 
-                                startActivity(
-                                    Intent(
-                                        this@MainActivity,
-                                        MenuActivity::class.java
-                                    )
-                                )
+                                        if (user == null) {
+                                            Toast.makeText(
+                                                this@MainActivity,
+                                                "Неверный логин или пароль",
+                                                Toast.LENGTH_LONG
+                                            ).show()
+                                        } else {
+                                            // Сохраняем данные текущего пользователя
+                                            getSharedPreferences(
+                                                "user_data",
+                                                MODE_PRIVATE
+                                            ).edit()
+                                                .putInt("current_user_id", user.id)
+                                                .putString("current_login", user.login)
+                                                .putBoolean("is_logged_in", true)
+                                                .apply()
+
+                                            Toast.makeText(
+                                                this@MainActivity,
+                                                "Добро пожаловать, ${user.fullName}!",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+
+                                            startActivity(
+                                                Intent(
+                                                    this@MainActivity,
+                                                    MenuActivity::class.java
+                                                )
+                                            )
+                                            finish()
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e(tag, "Ошибка авторизации", e)
+
+                                        Toast.makeText(
+                                            this@MainActivity,
+                                            "Ошибка при входе: ${e.localizedMessage}",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+                                }
                             }
                         },
                         onRegister = {
