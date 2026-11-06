@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -71,7 +70,6 @@ class MainActivity : AppCompatActivity() {
                                                 Toast.LENGTH_LONG
                                             ).show()
                                         } else {
-                                            // Сохраняем данные текущего пользователя
                                             getSharedPreferences(
                                                 "user_data",
                                                 MODE_PRIVATE
@@ -140,8 +138,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onStop() {
-        super.onStop()
         Log.i(tag, "onStop")
+        super.onStop()
     }
 
     override fun onRestart() {

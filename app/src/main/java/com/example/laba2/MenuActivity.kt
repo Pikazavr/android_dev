@@ -1,8 +1,10 @@
-﻿package com.example.laba2
+﻿
+package com.example.laba2
 
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
@@ -29,8 +31,52 @@ class MenuActivity : AppCompatActivity() {
 
     private var isAdmin by mutableStateOf(false)
 
+    private lateinit var userRepository: UserRepository
+    private lateinit var databaseTask: DatabaseThreadTask
+
+    private val tag = "MenuActivity"
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        userRepository = UserRepository(
+            DatabaseProvider.getDatabase(this)
+        )
+
+        // Создаём обработчик для получения результата в главном потоке
+        val handler = DatabaseThreadTask.createMainHandler { message ->
+
+            if (message.what == 1) {
+                val result = message.obj as DatabaseTaskResult
+
+                if (result.error != null) {
+                    Log.e(tag, "Ошибка фонового запроса: ${result.error}")
+
+                    Toast.makeText(
+                        this,
+                        result.error,
+                        Toast.LENGTH_LONG
+                    ).show()
+                } else {
+                    val count = result.result as Int
+
+                    Log.i(tag, "Количество пользователей: $count")
+                    Log.i(
+                        tag,
+                        "Результат получен в потоке: ${Thread.currentThread().name}"
+                    )
+
+                    Toast.makeText(
+                        this,
+                        "Запрос выполнен! Пользователей в базе: $count",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+
+        // Создаём исполнитель фоновых задач с задержкой 3 секунды
+        databaseTask = DatabaseThreadTask(handler)
 
         setContent {
             AppTheme {
@@ -41,21 +87,47 @@ class MenuActivity : AppCompatActivity() {
                     MenuScreen(
                         isAdmin = isAdmin,
 
+                        onTestDatabase = {
+                            Toast.makeText(
+                                this@MenuActivity,
+                                "Запрос к базе запущен...",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            databaseTask.execute(1) {
+                                Log.i(
+                                    tag,
+                                    "Запрос выполняется в потоке: ${Thread.currentThread().name}"
+                                )
+
+                                userRepository.getUsers().size
+                            }
+                        },
+
                         onAdministration = {
                             startActivity(
-                                Intent(this@MenuActivity, UsersActivity::class.java)
+                                Intent(
+                                    this@MenuActivity,
+                                    UsersActivity::class.java
+                                )
                             )
                         },
 
                         onProfile = {
                             startActivity(
-                                Intent(this@MenuActivity, ProfileActivity::class.java)
+                                Intent(
+                                    this@MenuActivity,
+                                    ProfileActivity::class.java
+                                )
                             )
                         },
 
                         onSettings = {
                             startActivity(
-                                Intent(this@MenuActivity, SettingsActivity::class.java)
+                                Intent(
+                                    this@MenuActivity,
+                                    SettingsActivity::class.java
+                                )
                             )
                         },
 
@@ -113,8 +185,7 @@ class MenuActivity : AppCompatActivity() {
         }
 
         lifecycleScope.launch {
-            val database = DatabaseProvider.getDatabase(this@MenuActivity)
-            val user = database.userDao().getUserById(userId)
+            val user = userRepository.getUserById(userId)
             isAdmin = user?.isAdmin == true
         }
     }
@@ -123,6 +194,7 @@ class MenuActivity : AppCompatActivity() {
 @Composable
 fun MenuScreen(
     isAdmin: Boolean,
+    onTestDatabase: () -> Unit,
     onAdministration: () -> Unit,
     onProfile: () -> Unit,
     onSettings: () -> Unit,
@@ -178,6 +250,15 @@ fun MenuScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Сообщить о проблеме")
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Button(
+            onClick = onTestDatabase,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Проверить фоновый поток")
         }
 
         Spacer(modifier = Modifier.height(8.dp))
