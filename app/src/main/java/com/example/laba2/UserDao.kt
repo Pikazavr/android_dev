@@ -1,3 +1,4 @@
+
 package com.example.laba2
 
 import androidx.room.Dao
@@ -28,4 +29,8 @@ interface UserDao {
 
     @Query("SELECT * FROM users WHERE isAdmin = 1")
     suspend fun getAdmins(): List<User>
+
+    // Обновление аватара пользователя
+    @Query("UPDATE users SET avatarUri = :avatarUri WHERE id = :userId")
+    suspend fun updateAvatar(userId: Int, avatarUri: String)
 }

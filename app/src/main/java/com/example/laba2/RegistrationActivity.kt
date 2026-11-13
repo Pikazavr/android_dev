@@ -6,9 +6,11 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
+import android.graphics.BitmapFactory
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -39,15 +41,17 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
-import android.graphics.BitmapFactory
 import kotlinx.coroutines.launch
+import java.io.File
 
 class RegistrationActivity : AppCompatActivity() {
 
     private lateinit var userRepository: UserRepository
 
     private var onAvatarSelected: ((String) -> Unit)? = null
+    private var cameraPhotoUri: Uri? = null
 
+    // Выбор фотографии из галереи
     private val avatarPicker =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             if (uri != null) {
@@ -68,6 +72,60 @@ class RegistrationActivity : AppCompatActivity() {
             }
         }
 
+    // Съёмка фотографии камерой
+    private val cameraLauncher =
+        registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+            if (success) {
+                cameraPhotoUri?.let { uri ->
+                    onAvatarSelected?.invoke(uri.toString())
+                    Toast.makeText(
+                        this,
+                        "Фотография сделана",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } else {
+                Toast.makeText(
+                    this,
+                    "Съёмка отменена",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+    private fun takePhoto() {
+        try {
+            val avatarDirectory = File(filesDir, "avatars")
+
+            if (!avatarDirectory.exists()) {
+                avatarDirectory.mkdirs()
+            }
+
+            val photoFile = File(
+                avatarDirectory,
+                "avatar_${System.currentTimeMillis()}.jpg"
+            )
+
+            cameraPhotoUri = FileProvider.getUriForFile(
+                this,
+                "$packageName.fileprovider",
+                photoFile
+            )
+
+            cameraPhotoUri?.let { uri ->
+                cameraLauncher.launch(uri)
+            }
+        } catch (e: Exception) {
+            Log.e("RegistrationActivity", "Ошибка запуска камеры", e)
+
+            Toast.makeText(
+                this,
+                "Не удалось открыть камеру: ${e.localizedMessage}",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -86,7 +144,19 @@ class RegistrationActivity : AppCompatActivity() {
                             onAvatarSelected = callback
                             avatarPicker.launch(arrayOf("image/*"))
                         },
-                        onRegister = { login, password, fullName, birthDate, gender, avatarUri ->
+
+                        onTakePhoto = { callback ->
+                            onAvatarSelected = callback
+                            takePhoto()
+                        },
+
+                        onRegister = {
+                                login,
+                                password,
+                                fullName,
+                                birthDate,
+                                gender,
+                                avatarUri ->
 
                             if (
                                 login.isBlank() ||
@@ -120,7 +190,6 @@ class RegistrationActivity : AppCompatActivity() {
                                                 Toast.LENGTH_LONG
                                             ).show()
                                         } else {
-                                            // Получаем только что созданного пользователя
                                             val registeredUser =
                                                 userRepository.loginUser(
                                                     login.trim(),
@@ -128,7 +197,6 @@ class RegistrationActivity : AppCompatActivity() {
                                                 )
 
                                             if (registeredUser != null) {
-                                                // Сохраняем текущую авторизованную сессию
                                                 getSharedPreferences(
                                                     "user_data",
                                                     MODE_PRIVATE
@@ -188,6 +256,7 @@ class RegistrationActivity : AppCompatActivity() {
                                 }
                             }
                         },
+
                         onBack = { finish() }
                     )
                 }
@@ -224,6 +293,7 @@ class RegistrationActivity : AppCompatActivity() {
 @Composable
 fun RegistrationScreen(
     onChooseAvatar: (((String) -> Unit) -> Unit),
+    onTakePhoto: (((String) -> Unit) -> Unit),
     onRegister: (
         String, String, String, String, String, String?
     ) -> Unit,
@@ -351,7 +421,20 @@ fun RegistrationScreen(
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Выбрать аватар")
+            Text("Выбрать из галереи")
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Button(
+            onClick = {
+                onTakePhoto { uri ->
+                    avatarUri = uri
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Сделать фото камерой")
         }
 
         Spacer(modifier = Modifier.height(20.dp))

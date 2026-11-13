@@ -1,12 +1,16 @@
 
 package com.example.laba2
 
+import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -30,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
+import java.io.File
 
 class ProfileActivity : AppCompatActivity() {
 
@@ -38,6 +43,41 @@ class ProfileActivity : AppCompatActivity() {
 
     private var currentUserId = -1
     private var targetUserId = -1
+
+    private var cameraPhotoUri: Uri? = null
+
+    // Выбор изображения из галереи
+    private val avatarPicker =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri != null) {
+                try {
+                    contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                } catch (e: SecurityException) {
+                    Log.e("ProfileActivity", "Не удалось сохранить доступ к изображению", e)
+                }
+
+                saveAvatar(uri)
+            }
+        }
+
+    // Съёмка фотографии камерой
+    private val cameraLauncher =
+        registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+            if (success) {
+                cameraPhotoUri?.let { uri ->
+                    saveAvatar(uri)
+                }
+            } else {
+                Toast.makeText(
+                    this,
+                    "Съёмка отменена",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -69,7 +109,12 @@ class ProfileActivity : AppCompatActivity() {
                         ProfileScreen(
                             user = user,
                             canMakeAdmin = canMakeAdmin,
+                            canEditAvatar = targetUserId == currentUserId,
                             onMakeAdmin = { makeAdmin() },
+                            onChooseAvatar = {
+                                avatarPicker.launch(arrayOf("image/*"))
+                            },
+                            onTakePhoto = { takePhoto() },
                             onBack = { finish() }
                         )
                     }
@@ -81,6 +126,73 @@ class ProfileActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         loadProfile()
+    }
+
+    // Создание файла и запуск камеры
+    private fun takePhoto() {
+        try {
+            val avatarDirectory = File(filesDir, "avatars")
+
+            if (!avatarDirectory.exists()) {
+                avatarDirectory.mkdirs()
+            }
+
+            val photoFile = File(
+                avatarDirectory,
+                "avatar_${System.currentTimeMillis()}.jpg"
+            )
+
+            cameraPhotoUri = FileProvider.getUriForFile(
+                this,
+                "$packageName.fileprovider",
+                photoFile
+            )
+
+            cameraPhotoUri?.let { uri ->
+                cameraLauncher.launch(uri)
+            }
+        } catch (e: Exception) {
+            Log.e("ProfileActivity", "Ошибка запуска камеры", e)
+
+            Toast.makeText(
+                this,
+                "Не удалось открыть камеру",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
+    // Сохранение URI нового аватара в Room
+    private fun saveAvatar(uri: Uri) {
+        lifecycleScope.launch {
+            try {
+                val database = DatabaseProvider.getDatabase(this@ProfileActivity)
+
+                database.userDao().updateAvatar(
+                    targetUserId,
+                    uri.toString()
+                )
+
+                profileUser = profileUser?.copy(
+                    avatarUri = uri.toString()
+                )
+
+                Toast.makeText(
+                    this@ProfileActivity,
+                    "Аватар успешно обновлён",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+            } catch (e: Exception) {
+                Log.e("ProfileActivity", "Ошибка сохранения аватара", e)
+
+                Toast.makeText(
+                    this@ProfileActivity,
+                    "Не удалось сохранить аватар",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
     }
 
     private fun loadProfile() {
@@ -119,6 +231,8 @@ class ProfileActivity : AppCompatActivity() {
                     finish()
                 }
             } catch (e: Exception) {
+                Log.e("ProfileActivity", "Ошибка загрузки профиля", e)
+
                 Toast.makeText(
                     this@ProfileActivity,
                     "Ошибка загрузки профиля",
@@ -133,7 +247,6 @@ class ProfileActivity : AppCompatActivity() {
             try {
                 val database = DatabaseProvider.getDatabase(this@ProfileActivity)
 
-                // Повторно проверяем права текущего пользователя.
                 val currentUser = database.userDao().getUserById(currentUserId)
 
                 if (currentUser?.isAdmin != true) {
@@ -154,6 +267,7 @@ class ProfileActivity : AppCompatActivity() {
                 ).show()
 
                 loadProfile()
+
             } catch (e: Exception) {
                 Toast.makeText(
                     this@ProfileActivity,
@@ -169,7 +283,10 @@ class ProfileActivity : AppCompatActivity() {
 fun ProfileScreen(
     user: User,
     canMakeAdmin: Boolean,
+    canEditAvatar: Boolean,
     onMakeAdmin: () -> Unit,
+    onChooseAvatar: () -> Unit,
+    onTakePhoto: () -> Unit,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -213,6 +330,26 @@ fun ProfileScreen(
             Text("👤", fontSize = 64.sp)
         }
 
+        if (canEditAvatar) {
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = onChooseAvatar,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Выбрать из галереи")
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = onTakePhoto,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Сделать фото камерой")
+            }
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
@@ -248,7 +385,11 @@ fun ProfileScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = if (user.isAdmin) "Роль: Администратор" else "Роль: Пользователь",
+            text = if (user.isAdmin) {
+                "Роль: Администратор"
+            } else {
+                "Роль: Пользователь"
+            },
             fontSize = 18.sp,
             modifier = Modifier.fillMaxWidth()
         )

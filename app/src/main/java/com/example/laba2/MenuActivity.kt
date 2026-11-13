@@ -43,7 +43,6 @@ class MenuActivity : AppCompatActivity() {
             DatabaseProvider.getDatabase(this)
         )
 
-        // Создаём обработчик для получения результата в главном потоке
         val handler = DatabaseThreadTask.createMainHandler { message ->
 
             if (message.what == 1) {
@@ -75,7 +74,6 @@ class MenuActivity : AppCompatActivity() {
             }
         }
 
-        // Создаём исполнитель фоновых задач с задержкой 3 секунды
         databaseTask = DatabaseThreadTask(handler)
 
         setContent {
@@ -86,6 +84,15 @@ class MenuActivity : AppCompatActivity() {
                 ) {
                     MenuScreen(
                         isAdmin = isAdmin,
+
+                        onStartGame = {
+                            startActivity(
+                                Intent(
+                                    this@MenuActivity,
+                                    GameActivity::class.java
+                                )
+                            )
+                        },
 
                         onTestDatabase = {
                             Toast.makeText(
@@ -194,6 +201,7 @@ class MenuActivity : AppCompatActivity() {
 @Composable
 fun MenuScreen(
     isAdmin: Boolean,
+    onStartGame: () -> Unit,
     onTestDatabase: () -> Unit,
     onAdministration: () -> Unit,
     onProfile: () -> Unit,
@@ -215,6 +223,15 @@ fun MenuScreen(
         )
 
         Spacer(modifier = Modifier.height(24.dp))
+
+        Button(
+            onClick = onStartGame,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Старт")
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         if (isAdmin) {
             Button(
